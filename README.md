@@ -1,196 +1,191 @@
 # Voice Scheduling Agent
 
-A real-time voice webhook server built with FastAPI that integrates with Vapi voice assistants and Google Calendar to create calendar events from voice conversations.
+A production-ready FastAPI webhook server that receives Vapi tool calls and creates Google Calendar events with strict authentication, validation, and voice-friendly responses.
+
+## What this service does
+
+This backend powers a voice scheduling flow:
+
+1. Voice assistant collects:
+   - `name` (required)
+   - `date` (required, `YYYY-MM-DD`)
+   - `time` (required, `HH:MM`)
+   - `title` (optional)
+2. Voice platform sends a webhook call to `POST /create-event`
+3. Server validates auth and payload
+4. Server creates an event in Google Calendar
+5. Server returns a Vapi-compatible `results[]` response with `toolCallId`
+
+---
 
 ## Architecture
 
-The application follows strict separation of concerns:
-
-- `routers/` - FastAPI route handlers (orchestration only, no business logic)
-- `schemas/` - Pydantic models for request/response validation
-- `services/` - Business logic and external API integrations
-- `core/` - Configuration, authentication, logging, and shared utilities
-
-**Planned Structure:**
-
-```
+```text
 .
-├── main.py                 # FastAPI app factory
-├── core/                   # Core utilities
-│   ├── config.py          # Settings management
-│   ├── logging.py         # Logging setup
-│   └── security.py        # Bearer token auth
-├── routers/               # Route handlers
-│   └── create_event.py    # /create-event endpoint
-├── schemas/               # Pydantic models
-│   ├── vapi.py           # Vapi request/response schemas
-│   └── calendar.py       # Calendar event schemas
-├── services/              # Business logic
-│   └── calendar.py       # Google Calendar integration
-├── tests/                 # Test suite
-│   ├── test_schemas.py   # Schema validation tests
-│   ├── test_calendar.py  # Service layer tests
-│   └── test_router.py    # Router integration tests
-├── .env.example          # Environment template
-├── requirements.txt      # Dependencies
-└── IMPLEMENTATION_CHECKLIST.md  # Development tracking
+├── main.py
+├── core/
+│   ├── config.py      # typed settings (Pydantic Settings)
+│   ├── security.py    # Bearer auth dependency
+│   └── logging.py     # structured/idempotent logging
+├── routers/
+│   └── create_event.py
+├── schemas/
+│   ├── vapi.py
+│   └── calendar.py
+├── services/
+│   └── calendar.py    # async-safe Google Calendar adapter
+└── tests/
+    ├── test_auth.py
+    ├── test_schemas.py
+    ├── test_calendar.py
+    └── test_router.py
 ```
 
-## Deployment Model
+Design boundaries:
 
-This project is deployment-provider agnostic. The FastAPI webhook can run on any environment capable of hosting Python services (local VM, VPS, cloud instance, or container platform). The only requirements are:
+- **Routers**: orchestration only
+- **Services**: external integration/business logic
+- **Schemas**: API contract validation
+- **Core**: config/auth/logging utilities
 
-- Python 3.12+
-- Network exposure for the webhook endpoint (public URL)
-- Bearer token configured for webhook authentication
-- Google Calendar API access via Service Account
+---
 
-### Infrastructure Context (This Implementation)
+## Infrastructure model (important)
 
-For this assignment, I reused an existing **private server instance** I already maintained. The host is not directly exposed to the public internet, and administrative access is only available through SSH over a Tailscale tailnet.
+### 1) Tailscale (private management plane)
 
-Because inbound access to the server is sealed, the webhook is exposed publicly using **Tailscale Funnel**. Funnel provides a public HTTPS endpoint and forwards requests to the local FastAPI service port.
+The server is managed privately over a Tailscale tailnet (SSH access is not publicly exposed).
 
-**Security Boundary:**
-- Management plane: private (tailnet-only SSH)
-- Application ingress: public only through Funnel endpoint
-- Application-level protection: Bearer token validation on webhook requests
+### 2) Tailscale Funnel (public HTTPS ingress)
 
-**Why this deployment approach:**
-I intentionally kept the application architecture provider-agnostic and separated it from infrastructure specifics. For this submission, I reused an existing private server instance where administrative access is restricted to SSH over Tailscale. To satisfy the public webhook requirement without opening direct inbound ports, I used Tailscale Funnel to expose only the webhook endpoint over HTTPS while keeping the host's management plane private.
+Funnel publishes a public HTTPS URL and forwards requests to your local FastAPI port (8000).
 
-## Quick Start
+### 3) FastAPI binding
 
-### Prerequisites
+For this deployment model, run FastAPI on:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+TLS is terminated by Funnel, not by FastAPI.
+
+---
+
+## Prerequisites
 
 - Python 3.12+
 - Google Cloud project with Calendar API enabled
-- Service Account credentials JSON file
+- Google Service Account credentials (`credentials.json`)
+- Tailscale installed + authenticated on server
+- Funnel URL from `tailscale funnel status`
 
-### Local Development
+---
 
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Environment variables
 
-2. **Set up environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your values
-   ```
-
-3. **Place Google credentials:**
-   ```bash
-   # Download from Google Cloud Console and place as credentials.json
-   ```
-
-4. **Run the server:**
-   Development only: binding to `0.0.0.0` is convenient for local testing.
-   For production, bind to localhost and expose through Funnel or a TLS reverse proxy.
-   ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-5. **Test the webhook:**
-   ```bash
-   curl -X POST http://localhost:8000/create-event \
-     -H "Authorization: Bearer $WEBHOOK_SECRET" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "message": {
-         "toolCallList": [{
-           "id": "toolu_123",
-           "function": {
-             "name": "create_calendar_event",
-             "arguments": {
-               "name": "John Doe",
-               "date": "2026-03-05",
-               "time": "14:00",
-               "title": "Test Meeting"
-             }
-           }
-         }]
-       }
-     }'
-   ```
-
-## Environment Variables
+Use `.env.example` as template.
 
 | Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `WEBHOOK_SECRET` | Yes | - | Bearer token for webhook authentication (minimum 24 chars) |
-| `GOOGLE_CALENDAR_ID` | No | `primary` | Calendar ID for event creation |
-| `GOOGLE_CREDENTIALS_PATH` | No | `credentials.json` | Path to service account credentials |
-| `TIMEZONE` | No | `UTC` | Default timezone for events |
-| `DEFAULT_EVENT_DURATION_MINUTES` | No | `60` | Default meeting duration |
-| `DEFAULT_EVENT_TITLE` | No | `Meeting` | Default title when none provided |
-| `LOG_LEVEL` | No | `INFO` | Logging verbosity |
+|---|---|---|---|
+| `WEBHOOK_SECRET` | Yes | - | Bearer token for webhook auth (min 24 chars) |
+| `GOOGLE_CALENDAR_ID` | No | `primary` | Target calendar ID |
+| `GOOGLE_CREDENTIALS_PATH` | No | `credentials.json` | Service account JSON path |
+| `TIMEZONE` | No | `UTC` | Local interpretation timezone for incoming date/time |
+| `DEFAULT_EVENT_DURATION_MINUTES` | No | `60` | Event duration |
+| `DEFAULT_EVENT_TITLE` | No | `Meeting` | Fallback title |
+| `LOG_LEVEL` | No | `INFO` | Logging level |
 
-## Production Deployment
+Security:
+- Never commit `.env`
+- Never commit real `credentials.json`
 
-### Option 1: Private Server + Tailscale Funnel (Used Here)
+---
 
-For servers with sealed inbound access, use Tailscale Funnel:
+## Timezone & Data Integrity
+
+Incoming `date` + `time` from voice payloads are interpreted as **local time in `TIMEZONE`**, then converted to **explicit UTC ISO-8601** before sending to Google Calendar.
+
+- Input example: `date=2026-03-05`, `time=14:00`, `TIMEZONE=America/New_York`
+- Converted/stored/sent example: `2026-03-05T19:00:00+00:00` (UTC)
+
+This prevents ambiguity and ensures consistent calendar storage/behavior.
+
+---
+
+## Local development
 
 ```bash
-# On the private server
-uvicorn main:app --host 127.0.0.1 --port 8000
-tailscale funnel 8000
-# Public HTTPS URL will be provided by Funnel
-```
-
-### Option 2: VPS with Public Interface
-
-For cloud providers or VPS with public networking:
-
-Use HTTPS termination via reverse proxy (for example, Nginx/Caddy) before exposing
-the webhook publicly. Do not expose bearer-token endpoints over plain HTTP.
-
-```bash
-# Clone and setup
-git clone <repo-url>
-cd voice-scheduling-agent
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with production values
-
-# Start server bound locally behind reverse proxy
-uvicorn main:app --host 127.0.0.1 --port 8000
+# edit .env
+# place credentials.json (gitignored)
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Configure Vapi
+Health check:
 
-- Set webhook URL to your public URL + `/create-event`
-- Add Authorization header with your `WEBHOOK_SECRET`
-
-## Testing
-
-Run all tests:
 ```bash
-pytest
+curl -i http://localhost:8000/healthz
 ```
 
-Run with coverage:
+---
+
+## Server deployment (Hetzner + Tailscale Funnel)
+
+### 1) Bootstrap server (first time)
+
 ```bash
-pytest --cov=. --cov-report=term-missing
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
 ```
 
-## Quality Gates
+### 2) Deploy app
 
-Always run before committing:
 ```bash
-ruff format .
-ruff check .
-mypy . --strict
-pytest
+mkdir -p ~/apps
+cd ~/apps
+git clone <REPO_URL> voice-scheduling-agent
+cd voice-scheduling-agent
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# edit .env with production values
+# securely place credentials.json
 ```
 
-## Voice Integration
+### 3) Start app
 
-### Vapi Payload Schema
+```bash
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
 
-The webhook expects this exact format:
+### 4) Expose with Funnel
+
+```bash
+tailscale funnel 8000
+tailscale funnel status
+```
+
+---
+
+## Webhook contract
+
+### Endpoint
+
+```http
+POST /create-event
+Authorization: Bearer <WEBHOOK_SECRET>
+Content-Type: application/json
+```
+
+### Request payload
 
 ```json
 {
@@ -213,18 +208,120 @@ The webhook expects this exact format:
 }
 ```
 
-Response format:
+### Response payload
+
 ```json
 {
   "results": [
     {
       "toolCallId": "toolu_123",
-      "result": "Calendar event 'Interview Prep' created for John Doe on March 5, 2026 at 2:00 PM"
+      "result": "..."
     }
   ]
 }
 ```
 
-## License
+Behavior notes:
+- Missing/invalid auth => `401`
+- Unknown functions => safe voice-friendly `200` result message
+- Malformed/empty tool-call payload => safe voice-friendly `200` result message
+- Internal errors are not leaked as stack traces
 
-MIT
+---
+
+## Smoke tests
+
+Set:
+
+```bash
+export BASE_URL="https://<your-funnel-url>"
+export WEBHOOK_SECRET="<server-secret>"
+```
+
+### M1 auth contract
+
+Health:
+
+```bash
+curl -i "${BASE_URL}/healthz"
+# expected: 200
+```
+
+Missing auth:
+
+```bash
+curl -i -X POST "${BASE_URL}/create-event" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+# expected: 401
+```
+
+Invalid auth:
+
+```bash
+curl -i -X POST "${BASE_URL}/create-event" \
+  -H "Authorization: Bearer invalid_token_12345678901234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+# expected: 401
+```
+
+Valid auth reaches handler:
+
+```bash
+curl -i -X POST "${BASE_URL}/create-event" \
+  -H "Authorization: Bearer ${WEBHOOK_SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+# expected: 200 and results[0].toolCallId == "toolu_1"
+```
+
+---
+
+## Quality gates
+
+Run before commit:
+
+```bash
+ruff format .
+ruff check .
+mypy . --strict
+pytest
+```
+
+---
+
+## Troubleshooting
+
+### `ssh hetzner` fails with fish `Unsupported use of '='`
+Use bash login explicitly:
+
+```bash
+ssh -t hetzner /bin/bash -l
+```
+
+### Funnel shows `No serve config`
+
+```bash
+tailscale funnel 8000
+tailscale funnel status
+```
+
+### Valid token still returns 401
+- Confirm server `.env` has correct `WEBHOOK_SECRET`
+- Confirm request header is exactly `Authorization: Bearer <token>`
+- Restart app after env changes
+
+### Google event creation fails
+- Check `credentials.json` exists and is readable
+- Ensure service account has access to target calendar
+- Verify `GOOGLE_CALENDAR_ID`
+
+---
+
+## Security checklist
+
+- Bearer token validation on webhook route
+- No secrets committed (`.env`, `credentials.json` ignored)
+- Voice-safe error messages (no stack traces to caller)
+- Service Account auth (no OAuth consent flow)

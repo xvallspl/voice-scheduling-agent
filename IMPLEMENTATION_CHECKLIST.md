@@ -136,7 +136,7 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 - [x] Add comprehensive schema tests
 
 **Evidence:**
-- Commit SHA: `3403e18`
+- Commit SHA: `19771a7`
 - What:
   - [x] `schemas/vapi.py` — Request/response models
   - [x] `schemas/calendar.py` — Event DTOs
@@ -161,7 +161,7 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 - [x] Add service unit tests with mocked Google API
 
 **Evidence:**
-- Commit SHA: `9e7c122`
+- Commit SHA: `68fa2b4` (also tagged `m1-auth`)
 - What:
   - [x] `services/calendar.py` — Interface + Google implementation
   - [x] `tests/test_calendar.py` — Mocked service tests
@@ -187,7 +187,7 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 - [x] Ensure voice-friendly error messages
 
 **Evidence:**
-- Commit SHA: `8202836`
+- Commit SHA: `566c65c`
 - What:
   - [x] `routers/create_event.py` — Webhook endpoint with raw request parsing
   - [x] `schemas/vapi.py` — Flexible arguments for unknown functions
@@ -286,7 +286,7 @@ The original plan envisioned 9 sequential implementation commits with separate t
 - [x] Test valid auth + payload → 200 with correct `toolCallId`
 - [x] Test unknown function name → safe error message
 - [x] Test multiple tool calls processed correctly
-- [x] Test malformed payloads → proper validation errors
+- [x] Test malformed payloads → safe voice-friendly `200` response (not raw 422)
 
 **Evidence:**
 - Tests implemented in: `566c65c` (feat(router)) and validated in M2
@@ -408,7 +408,7 @@ HTTP/2 200
 - [x] Deploy/restart on private server
 - [x] Valid payload with one tool call → 200 + correct `toolCallId`
 - [x] Unknown function name → safe voice-friendly message
-- [x] Empty `toolCallList` → proper validation error
+- [x] Empty `toolCallList` → safe voice-friendly `200` response (not raw 422)
 - [x] Response format matches Vapi contract
 
 **Pass Criteria:**

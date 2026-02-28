@@ -317,32 +317,89 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 ### M1 — After Commit 3 (Core Config + Auth)
 **Goal:** Verify security contract on deployed instance.
 
-- [ ] Deploy to private server (SCP + systemd restart)
-- [ ] `GET /healthz` → 200
-- [ ] `POST /create-event` without Authorization → 401
-- [ ] `POST /create-event` with invalid token → 401
-- [ ] `POST /create-event` with valid token → reaches handler
+- [x] Deploy to private server (SCP + systemd restart)
+- [x] `GET /healthz` → 200
+- [x] `POST /create-event` without Authorization → 401
+- [x] `POST /create-event` with invalid token → 401
+- [x] `POST /create-event` with valid token → reaches handler
 
 **Pass Criteria:**
-- [ ] No 5xx on auth tests
-- [ ] Missing/invalid token returns 401 (matches SPEC)
-- [ ] Service accessible via Tailscale Funnel URL
+- [x] No 5xx on auth tests
+- [x] Missing/invalid token returns 401 (matches SPEC)
+- [x] Service accessible via Tailscale Funnel URL
+
+**Evidence:**
+```bash
+# M1 Test 1: Health Check
+$ curl -i https://icepla-vps.tailea1085.ts.net/healthz
+HTTP/2 200
+{"status":"ok"}
+
+# M1 Test 2: Missing Auth → 401
+$ curl -i -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+HTTP/2 401
+
+# M1 Test 3: Invalid Auth → 401
+$ curl -i -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Authorization: Bearer invalid_token_12345678901234567890" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+HTTP/2 401
+
+# M1 Test 4: Valid Auth (Unknown Function) → 200
+$ curl -i -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Authorization: Bearer [REDACTED_TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+HTTP/2 200
+{"results":[{"toolCallId":"toolu_1","result":"I'm sorry, I don't know how to handle the function 'unknown_function'. Please try again with a supported command."}]}
+```
+
+**Result:** ✅ M1 PASSED - All 4 checks match expected behavior
 
 ---
 
 ### M2 — After Commit 5 (Service + Router Wired)
 **Goal:** Verify route orchestration and response contract.
 
-- [ ] Deploy/restart on private server
-- [ ] Valid payload with one tool call → 200 + correct `toolCallId`
-- [ ] Unknown function name → safe voice-friendly message
-- [ ] Empty `toolCallList` → proper validation error
-- [ ] Response format matches Vapi contract
+- [x] Deploy/restart on private server
+- [x] Valid payload with one tool call → 200 + correct `toolCallId`
+- [x] Unknown function name → safe voice-friendly message
+- [x] Empty `toolCallList` → proper validation error
+- [x] Response format matches Vapi contract
 
 **Pass Criteria:**
-- [ ] Response shape stable for voice agent
-- [ ] No raw provider exceptions in client output
-- [ ] All error messages are voice-readable
+- [x] Response shape stable for voice agent
+- [x] No raw provider exceptions in client output
+- [x] All error messages are voice-readable
+
+**Evidence:**
+```bash
+# M2 Test 1: Valid Payload → Real Calendar Event Created!
+$ curl -s -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Authorization: Bearer [REDACTED_TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_test","function":{"name":"create_calendar_event","arguments":{"name":"Test User","date":"2026-03-05","time":"14:00","title":"M2 Test"}}}]}}'
+{"results":[{"toolCallId":"toolu_test","result":"Great! I've scheduled your meeting 'M2 Test' with Test User on 2026-03-05 at 14:00. You can view it here: https://www.google.com/calendar/event?eid=..."}]}
+
+# M2 Test 2: Empty toolCallList → Safe Error
+$ curl -s -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Authorization: Bearer [REDACTED_TOKEN]" \
+  -d '{"message":{"toolCallList":[]}}'
+{"results":[{"toolCallId":"unknown","result":"I couldn't understand your request. Please make sure you provide the meeting details including the person's name, date, and time."}]}
+
+# M2 Test 3: Malformed Payload → Safe Error
+$ curl -s -X POST https://icepla-vps.tailea1085.ts.net/create-event \
+  -H "Authorization: Bearer [REDACTED_TOKEN]" \
+  -d '{"invalid_field":"value"}'
+{"results":[{"toolCallId":"unknown","result":"I couldn't understand your request. Please make sure you provide the meeting details including the person's name, date, and time."}]}
+```
+
+**Result:** ✅ M2 PASSED - All scenarios return 200 with proper response shape and voice-friendly messages
+
+---
 
 ---
 

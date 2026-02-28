@@ -206,63 +206,104 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 
 ### Out-of-Band Commit — Checklist Sync
 - [x] `docs(checklist): update with actual commit SHAs and mark 3-5 complete`
+- [x] `docs(checklist): record M1 and M2 production smoke test evidence`
 - [x] Synchronize checklist with actual git history
 - [x] Record actual commit SHAs for traceability
 - [x] Create M1 milestone tag (`m1-auth`)
+- [x] Create M2 milestone tag (`m2-router-contract`)
 
 **Evidence:**
-- Commit SHA: `0d4d912`
+- Commit SHA: `97945fa` (most recent docs sync)
+- Related commits:
+  - `f7b8bd2` — docs(checklist): update with actual commit SHAs and mark 3-5 complete
+  - `d5b8691` — docs(readme): rewrite with clear Tailscale+Funnel guidance
+  - `3954839` — docs: add clean Vapi agent system prompt
+  - `97945fa` — docs(checklist): record M1 and M2 production smoke test evidence
 - What:
   - [x] Updated IMPLEMENTATION_CHECKLIST.md with actual SHAs
-  - [x] Marked commits 3-5 as complete with validation evidence
-  - [x] Created annotated tag `m1-auth` on commit 4 (`9e7c122`)
+  - [x] Marked commits 3-7 as complete with validation evidence
+  - [x] Created annotated tag `m1-auth` on service commit
+  - [x] Created annotated tag `m2-router-contract` on evidence commit
 - Notes:
-  - This is an out-of-band docs commit, not part of numbered implementation scopes
+  - These are out-of-band docs commits, not part of numbered implementation scopes
   - Does not affect feature code or test logic
   - Maintains checklist as living document aligned with git history
+  - Consolidated commits 6/7 testing into earlier feature commits (4 and 5)
+
+---
+
+### Implementation History Note
+
+**How this project was actually built (vs. original plan):**
+
+The original plan envisioned 9 sequential implementation commits with separate test commits (6, 7). In practice, the work was consolidated:
+
+1. **Commit 4** (`68fa2b4`) delivered both the service layer AND comprehensive service tests (14 tests)
+2. **Commit 5** (`566c65c`) delivered both the router layer AND router integration tests (12 tests)
+3. **M2 milestone validation** (`97945fa`) ran production smoke tests, effectively validating the integration/contract test scope
+4. Documentation updates occurred across multiple out-of-band commits to maintain traceability
+
+**Result:** All planned test coverage exists and passed, but was delivered alongside feature implementation rather than as separate commits. This is noted for historical accuracy — the functionality is complete and verified.
+
+**Current State:**
+- Commits 1-5: Core implementation ✅
+- Commits 6-7: Testing (consolidated into 4-5) ✅
+- Milestones M1-M2: Production validated ✅
+- Remaining: M3 (timezone verification), M4 (final release)
 
 ---
 
 ### Commit 6 — Service Tests
-- [ ] `test(service): add calendar service unit tests with mocked google client`
-- [ ] Cover success path (event created, response formatted)
-- [ ] Cover Google API failures (mapped to `CalendarServiceError`)
-- [ ] Cover invalid credentials handling
+**Status:** ✅ **COMPLETED (merged into Commit 4 scope)**
 
-**Status Note:**
-- Service tests were initially created as part of Commit 4 scope
-- This commit scope reserved for any additional service test coverage if needed
-- If no additional coverage required, may be merged with Commit 7 or marked N/A
+- [x] `test(service): add calendar service unit tests with mocked google client`
+- [x] Cover success path (event created, response formatted)
+- [x] Cover Google API failures (mapped to `CalendarServiceError`)
+- [x] Cover invalid credentials handling
 
-**Evidence Template:**
-- Commit: `test(service): add calendar service unit tests with mocked google client`
-- What:
-  - [ ] Additional service test coverage (if needed)
+**Evidence:**
+- Tests implemented in: `68fa2b4` (feat(service))
+- Test file: `tests/test_calendar.py` — 14 comprehensive tests
 - Validation:
-  - [ ] `pytest tests/test_calendar.py` → All pass ✅
+  - [x] `pytest tests/test_calendar.py` → 14/14 passed ✅
+  - [x] Success path: `test_create_event_success`
+  - [x] Google API errors: `test_http_401_authentication_error`, `test_http_403_permission_error`, `test_http_404_not_found_error`, `test_http_500_server_error`
+  - [x] Invalid credentials: `test_credentials_file_not_found`
+  - [x] Timeout: `test_timeout_enforced`
 - Notes:
+  - Service tests delivered as part of Commit 4 (service layer implementation)
   - All external calls mocked, no network dependencies
+  - This planned scope was consolidated into earlier feature commit
 
 ---
 
 ### Commit 7 — Integration/Contract Tests
-- [ ] `test(integration): cover webhook auth, contract shape, and toolCallId propagation`
-- [ ] Test missing auth header → 401
-- [ ] Test invalid bearer token → 401
-- [ ] Test valid auth + payload → 200 with correct `toolCallId`
-- [ ] Test unknown function name → safe error message
-- [ ] Test multiple tool calls processed correctly
-- [ ] Test malformed payloads → proper validation errors
+**Status:** ✅ **COMPLETED (merged into Commit 5 scope and M2 validation)**
 
-**Evidence Template:**
-- Commit: `test(integration): cover webhook auth, contract shape, and toolCallId propagation`
-- What:
-  - [ ] `tests/test_router.py` — Full integration suite
-- Validation:
-  - [ ] `pytest tests/test_router.py` → All pass ✅
-  - [ ] `pytest` → Full suite passes ✅
+- [x] `test(integration): cover webhook auth, contract shape, and toolCallId propagation`
+- [x] Test missing auth header → 401
+- [x] Test invalid bearer token → 401
+- [x] Test valid auth + payload → 200 with correct `toolCallId`
+- [x] Test unknown function name → safe error message
+- [x] Test multiple tool calls processed correctly
+- [x] Test malformed payloads → proper validation errors
+
+**Evidence:**
+- Tests implemented in: `566c65c` (feat(router)) and validated in M2
+- Test file: `tests/test_router.py` — 12 integration tests
+- Local validation:
+  - [x] `pytest tests/test_router.py` → 12/12 passed ✅
+- Production validation (M2 milestone):
+  - [x] Missing auth: `401` ✅
+  - [x] Invalid auth: `401` ✅
+  - [x] Valid auth + unknown function: `200` with `toolCallId` ✅
+  - [x] Valid auth + create event: `200` with real calendar event ✅
+  - [x] Empty toolCallList: safe voice-friendly message ✅
+  - [x] Malformed payload: safe voice-friendly message ✅
 - Notes:
-  - Contract tests verify exact Vapi payload/response format
+  - Router integration tests delivered as part of Commit 5 (router orchestration)
+  - Full contract validated in production via M2 milestone testing
+  - This planned scope was consolidated into earlier feature commit
 
 ---
 

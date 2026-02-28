@@ -4,25 +4,26 @@ This module defines Pydantic models for Vapi webhook payloads,
 including tool call lists, function arguments, and responses.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from typing import Any
 
-from schemas.calendar import EventCreate
+from pydantic import BaseModel, Field, field_validator
 
 
 class ToolCallFunction(BaseModel):
     """Function call details within a tool call.
 
     Contains the function name and arguments as provided by Vapi.
-    Arguments are strictly validated against the expected schema.
+    Arguments are flexible to support unknown function names,
+    with validation performed at the router layer for known functions.
     """
 
     name: str = Field(
         ...,
         description="Function name to invoke",
     )
-    arguments: EventCreate = Field(
-        ...,
-        description="Arguments for calendar event creation (name, date, time, optional title)",
+    arguments: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Arguments passed to the function (validated by router for known functions)",
     )
 
 

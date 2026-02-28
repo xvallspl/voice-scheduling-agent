@@ -23,23 +23,23 @@ class TestToolCallFunction:
         """Create valid function schema."""
         func = ToolCallFunction(
             name="create_calendar_event",
-            arguments=EventCreate(
-                name="John",
-                date="2026-03-05",
-                time="14:00",
-            ),
+            arguments={
+                "name": "John",
+                "date": "2026-03-05",
+                "time": "14:00",
+            },
         )
         assert func.name == "create_calendar_event"
-        assert func.arguments.name == "John"
+        assert func.arguments["name"] == "John"
 
     def test_arguments_as_dict(self) -> None:
-        """Arguments can be passed as dict and validated."""
+        """Arguments can be passed as dict and accessed as dict."""
         func = ToolCallFunction(
             name="create_calendar_event",
-            arguments={"name": "Jane", "date": "2026-04-10", "time": "09:00"},  # type: ignore[arg-type]
+            arguments={"name": "Jane", "date": "2026-04-10", "time": "09:00"},
         )
-        assert func.arguments.name == "Jane"
-        assert func.arguments.date == "2026-04-10"
+        assert func.arguments["name"] == "Jane"
+        assert func.arguments["date"] == "2026-04-10"
 
 
 class TestToolCallItem:
@@ -51,7 +51,7 @@ class TestToolCallItem:
             id="toolu_123",
             function=ToolCallFunction(
                 name="create_calendar_event",
-                arguments=EventCreate(name="John", date="2026-03-05", time="14:00"),
+                arguments={"name": "John", "date": "2026-03-05", "time": "14:00"},
             ),
         )
         assert item.id == "toolu_123"
@@ -64,73 +64,82 @@ class TestToolCallItem:
                 id="",
                 function=ToolCallFunction(
                     name="create_calendar_event",
-                    arguments=EventCreate(name="test", date="2026-03-05", time="14:00"),
+                    arguments={"name": "test", "date": "2026-03-05", "time": "14:00"},
                 ),
             )
 
 
 class TestToolCallFunctionArguments:
-    """Tests for ToolCallFunction argument contract validation."""
+    """Tests for ToolCallFunction flexible argument handling.
 
-    def test_valid_arguments(self) -> None:
-        """Valid function arguments pass validation."""
+    Note: Strict validation of EventCreate fields (name, date, time) is
+    performed at the router layer, not at the Vapi schema layer. This allows
+    unknown function names to pass through schema validation and be handled
+    gracefully by the router.
+    """
+
+    def test_valid_arguments_as_dict(self) -> None:
+        """Valid function arguments as dict pass schema validation."""
         func = ToolCallFunction(
             name="create_calendar_event",
-            arguments=EventCreate(
-                name="John Doe",
-                date="2026-03-05",
-                time="14:00",
-                title="Interview",
-            ),
+            arguments={
+                "name": "John Doe",
+                "date": "2026-03-05",
+                "time": "14:00",
+                "title": "Interview",
+            },
         )
-        assert func.arguments.name == "John Doe"
-        assert func.arguments.title == "Interview"
+        assert func.arguments["name"] == "John Doe"
+        assert func.arguments["title"] == "Interview"
 
-    def test_arguments_without_title(self) -> None:
-        """Arguments without optional title are valid."""
+    def test_arguments_without_title_as_dict(self) -> None:
+        """Arguments without optional title are accepted as dict."""
         func = ToolCallFunction(
             name="create_calendar_event",
-            arguments=EventCreate(
-                name="Jane Smith",
-                date="2026-04-15",
-                time="09:30",
-            ),
+            arguments={
+                "name": "Jane Smith",
+                "date": "2026-04-15",
+                "time": "09:30",
+            },
         )
-        assert func.arguments.title is None
+        assert "title" not in func.arguments
 
-    def test_missing_required_arguments_fails(self) -> None:
-        """Missing required arguments (name, date, time) fails at Vapi level."""
-        # Missing date in function arguments
-        with pytest.raises(ValidationError, match="date"):
-            ToolCallFunction(
-                name="create_calendar_event",
-                arguments={"name": "John", "time": "14:00"},  # type: ignore[arg-type]
-            )
+    def test_unknown_function_with_any_arguments(self) -> None:
+        """Unknown function names can have any argument structure."""
+        # This allows graceful handling of unknown functions at router level
+        func = ToolCallFunction(
+            name="unknown_function",
+            arguments={"some_field": "some_value", "another_field": 123},
+        )
+        assert func.name == "unknown_function"
+        assert func.arguments["some_field"] == "some_value"
 
-    def test_invalid_date_in_arguments_fails(self) -> None:
-        """Invalid date format in function arguments fails validation."""
-        with pytest.raises(ValidationError, match="YYYY-MM-DD"):
-            ToolCallFunction(
-                name="create_calendar_event",
-                arguments={
-                    "name": "John",
-                    "date": "05-03-2026",  # Wrong format
-                    "time": "14:00",
-                },  # type: ignore[arg-type]
-            )
+    def test_empty_arguments_default(self) -> None:
+        """Empty arguments defaults to empty dict."""
+        func = ToolCallFunction(name="some_function")
+        assert func.arguments == {}
 
-    def test_invalid_time_in_arguments_fails(self) -> None:
-        """Invalid time format in function arguments fails validation."""
-        # Use 5-char invalid format (passes length, fails regex)
-        with pytest.raises(ValidationError, match="HH:MM"):
-            ToolCallFunction(
-                name="create_calendar_event",
-                arguments={
-                    "name": "John",
-                    "date": "2026-03-05",
-                    "time": "14-00",  # Wrong format (dash instead of colon)
-                },  # type: ignore[arg-type]
-            )
+    def test_missing_required_arguments_allowed_at_schema_level(self) -> None:
+        """Missing required fields are allowed at schema level (validated by router)."""
+        # Schema accepts any dict - router validates EventCreate structure
+        func = ToolCallFunction(
+            name="create_calendar_event",
+            arguments={"name": "John", "time": "14:00"},  # Missing date
+        )
+        assert func.arguments["name"] == "John"
+        assert "date" not in func.arguments
+
+    def test_invalid_date_format_allowed_at_schema_level(self) -> None:
+        """Invalid date format is allowed at schema level (validated by router)."""
+        func = ToolCallFunction(
+            name="create_calendar_event",
+            arguments={
+                "name": "John",
+                "date": "05-03-2026",  # Wrong format
+                "time": "14:00",
+            },
+        )
+        assert func.arguments["date"] == "05-03-2026"
 
 
 class TestVapiRequest:

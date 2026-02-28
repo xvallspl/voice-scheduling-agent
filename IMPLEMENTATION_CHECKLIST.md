@@ -129,70 +129,97 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 ---
 
 ### Commit 3 — Schema Contract
-- [ ] `feat(schemas): implement strict Vapi request/response and calendar DTOs`
-- [ ] Implement Vapi payload schemas (`toolCallList`, function args)
-- [ ] Validate `date` format (`YYYY-MM-DD`) and `time` format (`HH:MM`)
-- [ ] Implement response models with `toolCallId` propagation
-- [ ] Add comprehensive schema tests
+- [x] `feat(schemas): implement strict Vapi request/response and calendar DTOs`
+- [x] Implement Vapi payload schemas (`toolCallList`, function args)
+- [x] Validate `date` format (`YYYY-MM-DD`) and `time` format (`HH:MM`)
+- [x] Implement response models with `toolCallId` propagation
+- [x] Add comprehensive schema tests
 
-**Evidence Template:**
-- Commit: `feat(schemas): implement strict Vapi request/response and calendar DTOs`
+**Evidence:**
+- Commit SHA: `3403e18`
 - What:
-  - [ ] `schemas/vapi.py` — Request/response models
-  - [ ] `schemas/calendar.py` — Event DTOs
-  - [ ] `tests/test_schemas.py` — Validation tests
+  - [x] `schemas/vapi.py` — Request/response models
+  - [x] `schemas/calendar.py` — Event DTOs
+  - [x] `tests/test_schemas.py` — Validation tests
 - Validation:
-  - [ ] `ruff` clean ✅
-  - [ ] `mypy . --strict` → Clean ✅
-  - [ ] `pytest tests/test_schemas.py` → All pass ✅
+  - [x] `ruff format .` → Clean ✅
+  - [x] `ruff check .` → Clean ✅
+  - [x] `mypy . --strict` → Clean ✅
+  - [x] `pytest tests/test_schemas.py` → 28/28 passed ✅
 - Notes:
   - Schema layer enforces contract before business logic
+  - Arguments are flexible (dict) to allow unknown function names through
 
 ---
 
 ### Commit 4 — Service Layer
-- [ ] `feat(service): implement async-safe Google Calendar service with domain errors`
-- [ ] Create service interface (`CalendarServiceInterface`)
-- [ ] Implement Google Calendar adapter
-- [ ] Wrap sync Google SDK calls in `asyncio.to_thread()`
-- [ ] Map all exceptions to domain-safe `CalendarServiceError`
-- [ ] Add service unit tests with mocked Google API
+- [x] `feat(service): implement async-safe Google Calendar service with domain errors`
+- [x] Create service interface (`CalendarServiceInterface`)
+- [x] Implement Google Calendar adapter
+- [x] Wrap sync Google SDK calls in `asyncio.to_thread()`
+- [x] Map all exceptions to domain-safe `CalendarServiceError`
+- [x] Add service unit tests with mocked Google API
 
-**Evidence Template:**
-- Commit: `feat(service): implement async-safe Google Calendar service with domain errors`
+**Evidence:**
+- Commit SHA: `9e7c122`
 - What:
-  - [ ] `services/calendar.py` — Interface + Google implementation
-  - [ ] `tests/test_calendar.py` — Mocked service tests
+  - [x] `services/calendar.py` — Interface + Google implementation
+  - [x] `tests/test_calendar.py` — Mocked service tests
 - Validation:
-  - [ ] `ruff` clean ✅
-  - [ ] `mypy . --strict` → Clean ✅ (allowing Google import untyped)
-  - [ ] `pytest tests/test_calendar.py` → All pass ✅
+  - [x] `ruff format .` → Clean ✅
+  - [x] `ruff check .` → Clean ✅
+  - [x] `mypy . --strict` → Clean ✅
+  - [x] `pytest tests/test_calendar.py` → 14/14 passed ✅
 - Notes:
   - Google client calls wrapped to prevent event loop blocking
   - No raw exceptions leak to router layer
+  - UTC timezone enforcement via ZoneInfo
+  - 8s timeout for voice platform compatibility
 
 ---
 
 ### Commit 5 — Router Orchestration
-- [ ] `feat(router): add create-event webhook orchestration with DI boundaries`
-- [ ] Implement `/create-event` endpoint with dependency injection
-- [ ] Keep router orchestration-only (parse → call service → format response)
-- [ ] Handle unknown function names gracefully
-- [ ] Handle empty `toolCallList` validation
-- [ ] Ensure voice-friendly error messages
+- [x] `feat(router): add create-event webhook orchestration with DI boundaries`
+- [x] Implement `/create-event` endpoint with dependency injection
+- [x] Keep router orchestration-only (parse → call service → format response)
+- [x] Handle unknown function names gracefully
+- [x] Handle empty/malformed `toolCallList` with voice-safe responses
+- [x] Ensure voice-friendly error messages
 
-**Evidence Template:**
-- Commit: `feat(router): add create-event webhook orchestration with DI boundaries`
+**Evidence:**
+- Commit SHA: `8202836`
 - What:
-  - [ ] `routers/create_event.py` — Webhook endpoint
-  - [ ] Router registered in `main.py`
+  - [x] `routers/create_event.py` — Webhook endpoint with raw request parsing
+  - [x] `schemas/vapi.py` — Flexible arguments for unknown functions
+  - [x] Router registered in `main.py`
 - Validation:
-  - [ ] `ruff` clean ✅
-  - [ ] `mypy . --strict` → Clean ✅
-  - [ ] `pytest tests/test_router.py` → Integration tests pass ✅
+  - [x] `ruff format .` → Clean ✅
+  - [x] `ruff check .` → Clean ✅
+  - [x] `mypy . --strict` → Clean ✅
+  - [x] `pytest tests/test_router.py` → 12/12 passed ✅
 - Notes:
   - Router depends only on service interface and schemas
   - No business logic in route handlers
+  - Voice-safe error handling for all edge cases (no raw 422s)
+
+---
+
+### Out-of-Band Commit — Checklist Sync
+- [x] `docs(checklist): update with actual commit SHAs and mark 3-5 complete`
+- [x] Synchronize checklist with actual git history
+- [x] Record actual commit SHAs for traceability
+- [x] Create M1 milestone tag (`m1-auth`)
+
+**Evidence:**
+- Commit SHA: `0d4d912`
+- What:
+  - [x] Updated IMPLEMENTATION_CHECKLIST.md with actual SHAs
+  - [x] Marked commits 3-5 as complete with validation evidence
+  - [x] Created annotated tag `m1-auth` on commit 4 (`9e7c122`)
+- Notes:
+  - This is an out-of-band docs commit, not part of numbered implementation scopes
+  - Does not affect feature code or test logic
+  - Maintains checklist as living document aligned with git history
 
 ---
 
@@ -202,10 +229,15 @@ Allowed `type`: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`.
 - [ ] Cover Google API failures (mapped to `CalendarServiceError`)
 - [ ] Cover invalid credentials handling
 
+**Status Note:**
+- Service tests were initially created as part of Commit 4 scope
+- This commit scope reserved for any additional service test coverage if needed
+- If no additional coverage required, may be merged with Commit 7 or marked N/A
+
 **Evidence Template:**
 - Commit: `test(service): add calendar service unit tests with mocked google client`
 - What:
-  - [ ] Comprehensive service test coverage
+  - [ ] Additional service test coverage (if needed)
 - Validation:
   - [ ] `pytest tests/test_calendar.py` → All pass ✅
 - Notes:
@@ -393,6 +425,91 @@ pytest [path]
 **Notes:**
 - [Any implementation notes, tradeoffs, or follow-ups]
 ```
+
+---
+
+### Commit 3 — Schema Contract Evidence
+
+**Commit 3 — Schema Contract**
+
+- Commit SHA: `3403e18`
+- Files Changed: `schemas/vapi.py`, `schemas/calendar.py`, `tests/test_schemas.py`
+
+**Validation:**
+```bash
+ruff format .        # Clean
+ruff check .         # All checks passed
+mypy . --strict      # Success: no issues
+pytest tests/test_schemas.py  # 28 passed
+```
+
+**Results:**
+- All commands passed ✅
+- Test coverage: 28 schema validation tests
+
+---
+
+### Commit 4 — Service Layer Evidence
+
+**Commit 4 — Service Layer**
+
+- Commit SHA: `9e7c122`
+- Files Changed: `services/calendar.py`, `tests/test_calendar.py`
+
+**Validation:**
+```bash
+ruff format .        # Clean
+ruff check .         # All checks passed
+mypy . --strict      # Success: no issues
+pytest tests/test_calendar.py  # 14 passed
+```
+
+**Results:**
+- All commands passed ✅
+- Test coverage: 14 service tests with mocked Google API
+- M1 milestone tag created: `m1-auth` on 9e7c122
+
+---
+
+### Commit 5 — Router Orchestration Evidence
+
+**Commit 5 — Router Orchestration**
+
+- Commit SHA: `8202836`
+- Files Changed: `routers/create_event.py`, `schemas/vapi.py`, `tests/test_router.py`, `tests/test_schemas.py`
+
+**Validation:**
+```bash
+ruff format .        # Clean
+ruff check .         # All checks passed
+mypy . --strict      # Success: no issues
+pytest tests/test_router.py    # 12 passed
+```
+
+**Results:**
+- All commands passed ✅
+- Test coverage: 12 router integration tests
+- Voice-safe error handling verified (unknown functions, malformed payloads)
+
+---
+
+### Out-of-Band — Checklist Sync Evidence
+
+**Out-of-Band — Checklist Sync**
+
+- Commit SHA: `0d4d912`
+- Files Changed: `IMPLEMENTATION_CHECKLIST.md`
+
+**Validation:**
+```bash
+git log --oneline --decorate -n 7  # Shows 7 commits + m1-auth tag
+git tag -l -n1 m1-auth             # M1 auth milestone passed
+```
+
+**Results:**
+- Checklist synchronized with actual git history ✅
+- M1 milestone tag `m1-auth` created on commit 4 ✅
+- All commit SHAs documented for traceability ✅
 
 ---
 

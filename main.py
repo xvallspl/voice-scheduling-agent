@@ -4,6 +4,8 @@ This module creates and configures the FastAPI application instance,
 registering routers and middleware without business logic.
 """
 
+from typing import Any
+
 from fastapi import FastAPI
 
 from routers.create_event import router as create_event_router
@@ -25,7 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(create_event_router, prefix="/create-event", tags=["webhooks"])
 
     @app.get("/healthz", tags=["health"])
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, Any]:
         """Health check endpoint for monitoring.
 
         Returns:

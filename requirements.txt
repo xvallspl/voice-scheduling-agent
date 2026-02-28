@@ -1,13 +1,8 @@
-"""Dependencies for FastAPI application.
-
-Core dependencies required by the application.
-"""
-
-# Dependencies will be added here
-# - fastapi>=0.109.0
-# - pydantic>=2.5.0
-# - pydantic-settings>=2.1.0
-# - google-api-python-client>=2.108.0
-# - google-auth>=2.23.0
-# - python-dotenv>=1.0.0
-# - uvicorn>=0.25.0
+fastapi>=0.109.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+google-api-python-client>=2.108.0
+google-auth>=2.23.0
+python-dotenv>=1.0.0
+uvicorn>=0.25.0
+httpx>=0.26.0

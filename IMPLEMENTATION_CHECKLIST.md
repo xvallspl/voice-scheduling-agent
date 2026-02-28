@@ -444,19 +444,98 @@ $ curl -s -X POST https://icepla-vps.tailea1085.ts.net/create-event \
 
 ---
 
-### M3 — After Commit 7 (Integration Suite Complete)
-**Goal:** Verify real calendar creation through public Funnel URL.
+### M3 — Timezone & Real Calendar Verification
+**Goal:** Verify real calendar creation works reliably via Funnel, including timezone correctness and optional title behavior.
 
-- [ ] Deploy/restart on private server
-- [ ] Real create-event test (with test meeting title)
-- [ ] Confirm event appears in target Google Calendar
-- [ ] Repeat with omitted `title` → uses default
-- [ ] Verify timezone handling correct
+**Prerequisites:**
+- App running on server port 8000 ✅
+- Funnel active: `https://icepla-vps.tailea1085.ts.net` ✅
+- Service account has calendar write access ✅
+
+**Test Plan:**
+
+- [ ] **Test 1: Valid payload with explicit title**
+  - Command: `curl -X POST $BASE_URL/create-event -H "Authorization: Bearer $WEBHOOK_SECRET" -d '{"message":{"toolCallList":[{"id":"m3_titled","function":{"name":"create_calendar_event","arguments":{"name":"M3 Test","date":"2026-03-10","time":"15:00","title":"Timezone Test"}}}]}}'`
+  - Expected: `200` + event link + visible in Google Calendar
+  - Verify: Event appears with correct title
+
+- [ ] **Test 2: Valid payload without title (default title path)**
+  - Command: Same as Test 1 but omit `"title"` field
+  - Expected: `200` + event uses default title "Meeting"
+  - Verify: Event appears with title "Meeting" in Google Calendar
+
+- [ ] **Test 3: Timezone conversion verification**
+  - Precondition: Server `.env` has `TIMEZONE=America/New_York`
+  - Command: Create event at `14:00` (2pm EST)
+  - Expected: Event stored in Google Calendar as `19:00 UTC` (7pm UTC)
+  - Verify: Open event in Google Calendar web UI, check time shows correctly for your timezone
 
 **Pass Criteria:**
-- [ ] Event created reliably via Funnel URL
-- [ ] Date/time mapping correct
-- [ ] Google Calendar shows expected event
+- [ ] All 3 tests return `200` with proper response shape
+- [ ] Events appear in Google Calendar within 30 seconds
+- [ ] Timezone mapping is correct (local input → UTC storage)
+- [ ] Title fallback works when omitted
+
+**Evidence Format:**
+```
+Test 1: [command] → [status] → [event link from response]
+Calendar verification: [screenshot or event ID]
+
+Test 2: [command] → [status] → [title in response]
+Calendar verification: [default title confirmed]
+
+Test 3: [command with local time] → [stored UTC time in Google Calendar]
+Timezone verification: [observed behavior]
+```
+
+---
+
+### M4 — Final Release Smoke Suite
+**Goal:** Run final production readiness validation and lock release criteria.
+
+**Test Matrix (all via Funnel URL):**
+
+- [ ] **Smoke 1: Missing auth**
+  - Command: `curl -X POST $BASE_URL/create-event` (no Authorization header)
+  - Expected: `401`
+
+- [ ] **Smoke 2: Invalid auth**
+  - Command: `curl -X POST $BASE_URL/create-event -H "Authorization: Bearer wrong_token"`
+  - Expected: `401`
+
+- [ ] **Smoke 3: Valid create-event flow**
+  - Command: Full valid payload with auth
+  - Expected: `200` + `results[0].toolCallId` matches request
+
+- [ ] **Smoke 4: Malformed payload**
+  - Command: `curl -X POST $BASE_URL/create-event -H "Authorization: Bearer $WEBHOOK_SECRET" -d '{"invalid":"data"}'`
+  - Expected: `200` + safe voice-friendly error message
+
+**Operational Checks:**
+- [ ] Inspect server logs: `tail -n 100 app.log`
+  - Verify: No stack traces in responses
+  - Verify: No secrets logged
+  - Verify: Safe error messages only
+
+**Local Quality Gates (final run):**
+```bash
+ruff format .       # Expected: Clean
+ruff check .        # Expected: All checks passed
+mypy . --strict     # Expected: Success
+pytest              # Expected: All tests pass
+```
+
+**Pass Criteria:**
+- [ ] All 4 smoke tests pass with expected codes/messages
+- [ ] Logs show no unsafe error leakage
+- [ ] All local gates green
+- [ ] Service remains stable after test suite
+
+**Result:**
+- [ ] Tag `m4-release` created on final commit
+- [ ] Checklist "Final Done Criteria" updated
+
+---
 
 ---
 

@@ -1,0 +1,34 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "model": "opencode/kimi-k2.5",
+    "small_model": "opencode/kimi-k2",
+    "default_agent": "plan",
+    "autoupdate": true,
+    "permission": {
+        "bash": "allow",
+        "edit": "allow",
+        "read": "allow"
+    },
+    "agent": {
+        "plan": {
+            "mode": "primary",
+            "model": "opencode/gpt-5.3-codex",
+            "description": "Architect: Analyzes SPEC.md and coordinates build steps.",
+            "tools": {
+                "edit": false,
+                "write": false
+            }
+        },
+        "build": {
+            "mode": "primary",
+            "model": "opencode/kimi-k2.5",
+            "description": "Developer: Writes the FastAPI logic and deployment scripts."
+        },
+        "qa": {
+            "mode": "primary",
+            "model": "opencode/gpt-5.3-codex",
+            "description": "Senior Reviewer: Specialized in Python security and async logic.",
+            "prompt": "You are a pedantic Senior QA Engineer. Your goal is to find bugs in Python code, specifically focusing on blocking I/O in async functions, timezone mishandling, and insecure credential loading. Audit files against @AGENTS.md rules."
+        }
+    }
+}

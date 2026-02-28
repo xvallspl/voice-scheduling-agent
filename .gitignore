@@ -1,0 +1,23 @@
+# Python environment
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+.env.local
+
+# Google Cloud Credentials
+credentials.json
+token.json
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
+
+# OpenCode local history
+.opencode/

@@ -52,23 +52,29 @@ Design boundaries:
 
 ## Infrastructure model (important)
 
-### 1) Tailscale (private management plane)
+### 1) Private management plane (Tailscale)
 
-The server is managed privately over a Tailscale tailnet (SSH access is not publicly exposed).
+The server is managed privately over Tailscale (SSH access is not publicly exposed). This ensures secure operations access without exposing the server to public internet for management.
 
-### 2) Tailscale Funnel (public HTTPS ingress)
+### 2) Public HTTPS ingress (Caddy)
 
-Funnel publishes a public HTTPS URL and forwards requests to your local FastAPI port (8000).
+**Why Caddy instead of Tailscale Funnel:**
+- Tailscale Funnel routes through Tailscale's infrastructure, which can be unstable for third-party webhook providers
+- Caddy provides a direct, stable public HTTPS endpoint on standard ports (80/443)
+- Better compatibility with external webhook services (Vapi, etc.)
+- Automatic Let's Encrypt certificate management
+
+Caddy acts as a reverse proxy, terminating TLS on ports 80/443 and forwarding to the local FastAPI port (8000).
 
 ### 3) FastAPI binding
 
-For this deployment model, run FastAPI on:
+Run FastAPI on:
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-TLS is terminated by Funnel, not by FastAPI.
+TLS is terminated by Caddy, not by FastAPI.
 
 ---
 
@@ -77,8 +83,9 @@ TLS is terminated by Funnel, not by FastAPI.
 - Python 3.12+
 - Google Cloud project with Calendar API enabled
 - Google Service Account credentials (`credentials.json`)
-- Tailscale installed + authenticated on server
-- Funnel URL from `tailscale funnel status`
+- Caddy installed on server (for HTTPS reverse proxy)
+- Public hostname or IP with ports 80/443 accessible
+- Server firewall allowing inbound HTTP/HTTPS
 
 ---
 
@@ -99,6 +106,7 @@ Use `.env.example` as template.
 Security:
 - Never commit `.env`
 - Never commit real `credentials.json`
+- Set file permissions: `chmod 600 .env credentials.json`
 
 ---
 
@@ -133,7 +141,7 @@ curl -i http://localhost:8000/healthz
 
 ---
 
-## Server deployment (Hetzner + Tailscale Funnel)
+## Server deployment (Hetzner VPS with Caddy + Tailscale)
 
 ### 1) Bootstrap server (first time)
 
@@ -156,22 +164,52 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # edit .env with production values
-# securely place credentials.json
+# securely place credentials.json (chmod 600)
 ```
 
-### 3) Start app
+### 3) Start app with systemd
 
 ```bash
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Create systemd service
+sudo systemctl enable voice-scheduling-agent
+sudo systemctl start voice-scheduling-agent
+sudo systemctl status voice-scheduling-agent
 ```
 
-### 4) Expose with Funnel
+### 4) Configure Caddy reverse proxy
+
+**Why Caddy:** Provides stable public HTTPS endpoint for webhook providers.
+
+Create a Caddyfile (e.g., `/etc/caddy/Caddyfile`):
+
+```
+<your-webhook-hostname> {
+    encode gzip
+    reverse_proxy 127.0.0.1:8000
+}
+```
+
+Start Caddy:
 
 ```bash
-tailscale funnel 8000
-tailscale funnel status
+sudo systemctl enable caddy
+sudo systemctl start caddy
+sudo systemctl status caddy
 ```
+
+### 5) Configure Tailscale (optional, for private management)
+
+If using Tailscale for private SSH access:
+
+```bash
+# On server
+tailscale up
+
+# From local machine (with tailscale)
+ssh icepla@hetzner
+```
+
+**Note:** Do NOT use `tailscale funnel` for public ingress — use Caddy instead for stability.
 
 ---
 
@@ -234,7 +272,7 @@ Behavior notes:
 Set:
 
 ```bash
-export BASE_URL="https://<your-funnel-url>"
+export BASE_URL="https://<your-webhook-url>"
 export WEBHOOK_SECRET="<server-secret>"
 ```
 
@@ -300,12 +338,16 @@ Use bash login explicitly:
 ssh -t hetzner /bin/bash -l
 ```
 
-### Funnel shows `No serve config`
+### Caddy shows errors or HTTPS not working
+
+Check Caddy status and logs:
 
 ```bash
-tailscale funnel 8000
-tailscale funnel status
+sudo systemctl status caddy
+sudo journalctl -u caddy --since "10 minutes ago"
 ```
+
+Verify ports 80/443 are open in your cloud provider firewall.
 
 ### Valid token still returns 401
 - Confirm server `.env` has correct `WEBHOOK_SECRET`

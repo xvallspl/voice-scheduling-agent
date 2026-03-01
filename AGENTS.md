@@ -292,13 +292,18 @@ Before completing any task:
 # Start FastAPI locally
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-# Expose via Tailscale Funnel
-tailscale funnel 8000
+# Production: Caddy reverse proxy (port 443 -> 8000)
+# Configure Caddyfile with your public hostname, then:
+sudo systemctl restart caddy
+
+# Tailscale for private management (optional)
+tailscale up
+ssh icepla@hetzner
 
 # Verify webhook is accessible
 curl -H "Authorization: Bearer $WEBHOOK_SECRET" \
      -H "Content-Type: application/json" \
-     -X POST https://your-funnel-url/create-event \
+     -X POST https://<your-webhook-url>/create-event \
      -d '{"message": {"toolCallList": [...]}}'
 ```
 

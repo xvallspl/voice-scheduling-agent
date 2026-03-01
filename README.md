@@ -329,13 +329,6 @@ Expected: `200` with `results[0].toolCallId` and success message.
 
 ---
 
-## Proof of Successful Event Creation
-
-- **Loom demo:** `<your-loom-url>`
-- Optional: Screenshot of created event in Google Calendar.
-
----
-
 ## Smoke tests
 
 Set:

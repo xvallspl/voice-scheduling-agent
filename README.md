@@ -267,6 +267,75 @@ Behavior notes:
 
 ---
 
+## How to Test the Agent
+
+You can test this project in two ways:
+
+### 1) Human Test (Call the Assistant)
+
+- **Preferred (web call):** `<your-vapi-web-call-link-if-available>`
+- **Phone call:** `<your-vapi-phone-number>`
+
+#### Suggested test script
+Say:
+- "Appointment tomorrow at 3 with Maria."
+- Confirm when asked.
+
+Expected behavior:
+1. Assistant greets and collects name/date/time.
+2. Assistant confirms details before creating the event.
+3. Assistant reports success/failure in natural voice.
+4. Event appears in the configured Google Calendar.
+
+> Note: Relative dates like "tomorrow" are resolved by the assistant prompt logic and confirmed before tool call.
+
+---
+
+### 2) Technical Test (Webhook/API)
+
+- **Base URL:** `https://46-225-117-21.sslip.io`
+- **Endpoint:** `POST /create-event`
+- **Auth:** `Authorization: Bearer <WEBHOOK_SECRET>` (not published in repo)
+
+#### Health check
+```bash
+curl -i "https://46-225-117-21.sslip.io/healthz"
+```
+Expected: `200`
+
+#### Auth check (missing token)
+```bash
+curl -i -X POST "https://46-225-117-21.sslip.io/create-event" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_1","function":{"name":"unknown_function","arguments":{"foo":"bar"}}}]}}'
+```
+Expected: `401`
+
+#### Valid create-event call
+```bash
+curl -s -X POST "https://46-225-117-21.sslip.io/create-event" \
+  -H "Authorization: Bearer <WEBHOOK_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"message":{"toolCallList":[{"id":"toolu_create","function":{"name":"create_calendar_event","arguments":{"name":"Evaluator","date":"2026-03-05","time":"14:00","title":"Submission Verification"}}}]}}'
+```
+Expected: `200` with `results[0].toolCallId` and success message.
+
+---
+
+## Deployed Links
+
+- **Public webhook endpoint (technical):** `https://46-225-117-21.sslip.io/create-event`
+- **Public agent access (human):** `<your-vapi-web-call-link-or-phone-number>`
+
+---
+
+## Proof of Successful Event Creation
+
+- **Loom demo:** `<your-loom-url>`
+- Optional: Screenshot of created event in Google Calendar.
+
+---
+
 ## Smoke tests
 
 Set:

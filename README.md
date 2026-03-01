@@ -393,13 +393,6 @@ pytest
 
 ## Troubleshooting
 
-### `ssh hetzner` fails with fish `Unsupported use of '='`
-Use bash login explicitly:
-
-```bash
-ssh -t hetzner /bin/bash -l
-```
-
 ### Caddy shows errors or HTTPS not working
 
 Check Caddy status and logs:

@@ -96,33 +96,33 @@ Error responses should return user-friendly messages the voice agent can speak a
 ## Submission Requirements
 
 ### Deliverables Checklist
-- [ ] GitHub repository with complete source code
-- [ ] README.md containing:
-  - [ ] Deployed agent URL or public link
-  - [ ] Instructions on how to test the agent
-  - [ ] Optional: Local development setup guide
-  - [ ] Explanation of calendar integration approach
-- [ ] Proof of successful event creation:
-  - Screenshots/logs, OR
-  - Short Loom video (recommended)
+- [x] GitHub repository with complete source code
+- [x] README.md containing:
+  - [x] Deployed agent URL or public link
+  - [x] Instructions on how to test the agent
+  - [x] Optional: Local development setup guide
+  - [x] Explanation of calendar integration approach
+- [x] Proof of successful event creation:
+  - [x] Screenshots/logs, OR
+  - [x] Short Loom video (recommended)
 
 ### Code Quality Standards
-Before submission, verify:
-- All code formatted with `ruff format .`
-- Linting passes with `ruff check .`
-- Type checking passes with `mypy . --strict`
-- All tests pass with `pytest`
-- No secrets committed (use `.env` and `.gitignore`)
+Before submission, verified:
+- [x] All code formatted with `ruff format .`
+- [x] Linting passes with `ruff check .`
+- [x] Type checking passes with `mypy . --strict`
+- [x] All tests pass with `pytest` (61 passed)
+- [x] No secrets committed (use `.env` and `.gitignore`)
 
 ## Acceptance Criteria
 
 The assignment is complete when:
-1. Voice agent is publicly accessible and can be called
-2. Agent successfully collects name, date, and time from caller
-3. Agent confirms details before creating event
-4. Real calendar event appears in Google Calendar
-5. User receives verbal confirmation of success/failure
-6. Code is documented and follows repository guidelines
+1. [x] Voice agent is publicly accessible and can be called
+2. [x] Agent successfully collects name, date, and time from caller
+3. [x] Agent confirms details before creating event
+4. [x] Real calendar event appears in Google Calendar
+5. [x] User receives verbal confirmation of success/failure
+6. [x] Code is documented and follows repository guidelines
 
 ## Questions?
 

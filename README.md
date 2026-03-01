@@ -274,7 +274,7 @@ You can test this project in two ways:
 ### 1) Human Test (Call the Assistant)
 
 - **Preferred (web call):** `<your-vapi-web-call-link-if-available>`
-- **Phone call:** `<your-vapi-phone-number>`
+- **Phone call:** `+12408506172` (US number, works internationally)
 
 #### Suggested test script
 Say:
@@ -325,7 +325,7 @@ Expected: `200` with `results[0].toolCallId` and success message.
 ## Deployed Links
 
 - **Public webhook endpoint (technical):** `https://46-225-117-21.sslip.io/create-event`
-- **Public agent access (human):** `<your-vapi-web-call-link-or-phone-number>`
+- **Public agent access (human):** `+12408506172` (call to test voice scheduling)
 
 ---
 

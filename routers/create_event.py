@@ -4,6 +4,9 @@ This module implements the /create-event webhook endpoint that receives
 Vapi tool calls and orchestrates calendar event creation.
 """
 
+import time
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPAuthorizationCredentials
@@ -27,6 +30,38 @@ from services.calendar import (
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+# Simple in-memory rate limiter: {ip: [(timestamp, count), ...]}
+# Production would use Redis or similar distributed store
+_rate_limit_store: dict[str, list[tuple[float, int]]] = defaultdict(list)
+_MAX_REQUESTS_PER_MINUTE = 30  # 30 requests per minute per IP
+_RATE_LIMIT_WINDOW = 60  # 60 seconds
+
+
+def _check_rate_limit(client_ip: str) -> bool:
+    """Check if client IP has exceeded rate limit.
+
+    Args:
+        client_ip: Client IP address
+
+    Returns:
+        bool: True if allowed, False if rate limited
+    """
+    now = time.time()
+    window_start = now - _RATE_LIMIT_WINDOW
+
+    # Clean old entries and count current window requests
+    requests = _rate_limit_store[client_ip]
+    _rate_limit_store[client_ip] = [r for r in requests if r[0] > window_start]
+
+    current_count = len(_rate_limit_store[client_ip])
+
+    if current_count >= _MAX_REQUESTS_PER_MINUTE:
+        return False
+
+    # Record this request
+    _rate_limit_store[client_ip].append((now, 1))
+    return True
 
 
 def get_calendar_service_dep() -> CalendarServiceInterface:
@@ -153,6 +188,20 @@ async def create_event(
     Returns:
         VapiResponse: Results for each tool call with toolCallId correlation
     """
+    # Rate limiting check
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+        return VapiResponse(
+            results=[
+                VapiResult(
+                    toolCallId="unknown",
+                    result="I'm sorry, there have been too many requests. "
+                    "Please wait a moment and try again.",
+                )
+            ]
+        )
+
     # Parse request body manually to handle malformed payloads gracefully
     try:
         body = await raw_request.json()

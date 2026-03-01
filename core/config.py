@@ -24,6 +24,13 @@ class Settings(BaseSettings):
         description="Bearer token for webhook authentication (min 24 chars)",
     )
 
+    # Environment
+    environment: str = Field(
+        default="production",
+        pattern="^(development|production|testing)$",
+        description="Runtime environment (development enables docs)",
+    )
+
     # Google Calendar
     google_calendar_id: str = Field(
         default="primary",
